@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import os
 import subprocess
 import pandas as pd
+import re
+import matplotlib.pyplot as plt
 def open_read_well_file(fname):
     wellnodes = []
 #    print type(wellnodes), wellnodes
@@ -30,6 +32,13 @@ def create_timestep_list(mynewhandle):
         theline = mynewhandle.readline()
         theline.strip()
     #    print theline
+        if theline.startswith('## 2-D, REGULAR MESH'):
+            z=theline.split()
+            y_list=re.findall(r"\d+\.?\d*",z[5])
+            y_element=int(y_list[0])
+            x_list=re.findall(r"\d+\.?\d*",z[6])
+            x_element=int(x_list[0])
+           
         if theline.startswith('## NODEWISE'):
             theline.strip()
             t = theline.split()
@@ -49,7 +58,7 @@ def create_timestep_list(mynewhandle):
                 timesteps[num][1] = float(interim[num][2])
                 #print(timesteps[num])
             break
-    return timesteps,t
+    return x_element,y_element,timesteps,t
 
 # def resultreader( file_data, wellnodes, numberofnodes):
 def resultreader( file_data, numberofnodes):
@@ -117,12 +126,11 @@ def concentration_averager(all_wellnode_data,weighted_c_ts,homogeneous):
 
 
 
-fname_wellnodes = "file.inp17"
-wellnodes = open_read_well_file(fname_wellnodes)
+# fname_wellnodes = "file.inp17"
+# wellnodes = open_read_well_file(fname_wellnodes)
 
 # numberofnodes is a hardwired value that should be changed depending on the mesh
 # numberofnodes = 491647
-numberofnodes = 1812
 
 # fname1720 = "\\output\\Washover\\roi_sourcewashover_dec08.nod"
 
@@ -140,7 +148,8 @@ homogeneous = True #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 # file_data = open(fname1820, 'r')     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 file_data = open(fname, 'r')     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-timesteps,t= create_timestep_list(file_data)
+x_element,y_element,timesteps,t= create_timestep_list(file_data)
+numberofnodes = x_element*y_element
 ts_array = np.array(timesteps)
 t_start = 0.0E+08-(0*24*3600.)-(0*24*3600)
 ts_array_zeroed = (ts_array[:,1] - t_start)/3600/24
@@ -157,10 +166,21 @@ for timestep_id, timestep_clock in timesteps:
     i=i+1
     print(i)
 allnodes_data_timeseries_array=np.array(allnodes_data_timeseries)
+element=element[1:]
+
+sx=np.linspace(0,x_element-1,x_element)
+sy=np.linspace(-10,1,y_element)
+xv,yv=np.meshgrid(sx,sy)
+for i in range(len(timesteps)):
+    Saturation=allnodes_data_timeseries_array[i,:,5]
+    Saturation2d=Saturation.reshape(len(sy),len(sx),order='F')
+    plt.contourf(xv,yv,Saturation2d)
+    plt.pause(1)
     # all_wellnode_data.append(wellnodes_data)
     # average_c = concentration_averager(all_wellnode_data,weighted_c_ts,homogeneous)
     # time_series_average.append(average_c)
-element=element[1:]
+
+
 allnodes_data_array=np.array(allnodes_data)
 # df = pd.DataFrame(data=numpy_data, index=["row1", "row2"], columns=element)
 
