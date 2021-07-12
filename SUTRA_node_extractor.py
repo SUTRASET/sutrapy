@@ -1,4 +1,4 @@
-__author__ = 'sbginger'
+#__author__ = 'sbginger'
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -6,6 +6,7 @@ import subprocess
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 def open_read_well_file(fname):
     wellnodes = []
 #    print type(wellnodes), wellnodes
@@ -76,12 +77,12 @@ def resultreader( file_data, numberofnodes):
             theline = file_data.readline()
             theline = file_data.readline()
             
-            if theline.startswith('##   Node              X'):
-                element=theline.split()
+            # if theline.startswith('##   Node              X'):
+            element=theline.split()
                 #theline = file_data.readline()
-                allnodes= [file_data.readline().strip().split() for num in range (0, numberofnodes)]
-                allnodes_data=np.array([np.array(allnodes)])
-                
+            allnodes= [file_data.readline().strip().split() for num in range (0, numberofnodes)]
+            allnodes_data=np.array([np.array(allnodes)])
+            break
                     #allnodes[num] = [float(y) for lst in (theline.split() for x in allnodes[num]) for y in lst]
 #                print allnodes[152520]
 #                print allnodes[152521]
@@ -90,7 +91,7 @@ def resultreader( file_data, numberofnodes):
 #                print wellnodes[0]
 #                print wellnodes[1]
 #                print wellnodes[2]                
-                break
+                # break
 
     # return wellnodes
     return allnodes,allnodes_data,element
@@ -144,6 +145,9 @@ def concentration_averager(all_wellnode_data,weighted_c_ts,homogeneous):
 # fname1827 = "\\output\\Average_stress\\roi_sourcewashover_2yr.nod"
 # fname1828 = "\\output\\Recovery_after_wetseason\\roi_sourcewashover_2yr.nod"
 fname="C:/Project/MDBA/data_deliverable/modelling_benchmark_submit/PART1.nod"
+# fname="C:/SUTRA/SutraLab-master/example/SUTRA_examples/2D/Island2D/Island2D.nod"
+# fname="C:/SUTRA/SutraLab-master/example/SUTRA_examples/2D/Henry/Henry2D.nod"
+
 homogeneous = True #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 # file_data = open(fname1820, 'r')     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -166,22 +170,54 @@ for timestep_id, timestep_clock in timesteps:
     i=i+1
     print(i)
 allnodes_data_timeseries_array=np.array(allnodes_data_timeseries)
+allnodes_data_timeseries_array=allnodes_data_timeseries_array.astype(np.float)
 element=element[1:]
 
-sx=np.linspace(0,x_element-1,x_element)
-sy=np.linspace(-10,1,y_element)
+X_number=element.index('X')
+Y_number=element.index('Y')
+X=allnodes_data_timeseries_array[0,:,X_number]
+Y=allnodes_data_timeseries_array[0,:,Y_number]
+X_min=min(allnodes_data_timeseries_array[1,:,X_number])
+X_max=max(allnodes_data_timeseries_array[1,:,X_number])
+Y_min=min(allnodes_data_timeseries_array[1,:,Y_number])
+Y_max=max(allnodes_data_timeseries_array[1,:,Y_number])
+Pressure_number=element.index('Pressure')
+Saturation_number=element.index('Saturation')
+Concentration_number=element.index('Concentration')
+
+sx=np.linspace(X_min,X_max,x_element)
+sy=np.linspace(Y_min,Y_max,y_element)
+# sx=np.unique(allnodes_data_timeseries_array[0,:,X_number])
+# sy=np.unique(allnodes_data_timeseries_array[0,:,Y_number])
 xv,yv=np.meshgrid(sx,sy)
 for i in range(len(timesteps)):
-    Saturation=allnodes_data_timeseries_array[i,:,5]
-    Saturation2d=Saturation.reshape(len(sy),len(sx),order='F')
-    plt.contourf(xv,yv,Saturation2d)
+    Saturation=allnodes_data_timeseries_array[i,:,Saturation_number]
+    Saturation_interpolated=griddata((X,Y),Saturation,(xv,yv))   
+    # Saturation2d=Saturation.reshape(len(sy),len(sx),order='F')
+    plt.contourf(xv,yv,Saturation_interpolated)
+    plt.title('Saturation')
     plt.pause(1)
     # all_wellnode_data.append(wellnodes_data)
     # average_c = concentration_averager(all_wellnode_data,weighted_c_ts,homogeneous)
     # time_series_average.append(average_c)
+    
+for i in range(len(timesteps)):
+    Pressure=allnodes_data_timeseries_array[i,:,Pressure_number]
+    Pressure_interpolated=griddata((X,Y),Pressure,(xv,yv))   
+    # Saturation2d=Saturation.reshape(len(sy),len(sx),order='F')
+    plt.contourf(xv,yv,Pressure_interpolated)
+    plt.title('Pressure')    
+    plt.pause(1)
 
+for i in range(len(timesteps)):
+    Concentration=allnodes_data_timeseries_array[i,:,Concentration_number]
+    Concentration_interpolated=griddata((X,Y),Concentration,(xv,yv))   
+    # Saturation2d=Saturation.reshape(len(sy),len(sx),order='F')
+    plt.contourf(xv,yv,Concentration_interpolated)
+    plt.title('Concentration')    
+    plt.pause(1)
 
-allnodes_data_array=np.array(allnodes_data)
+# allnodes_data_array=np.array(allnodes_data)
 # df = pd.DataFrame(data=numpy_data, index=["row1", "row2"], columns=element)
 
 # print homogeneous, "homogeneous flag"
